@@ -11,6 +11,10 @@ inline RTrie *allocRTrie(void) {
     return (RTrie *)malloc(sizeof(RTrie));
 }
 
+inline Bool isEmptyTrie(RTrie *r) {
+    return r == NULL || r->children == NULL ? True: False;
+}
+
 RTrie *newRTrie(const UInt b) {
     if (b < 2)
         raiseError("Minimum b value is 2")
@@ -114,6 +118,20 @@ void *__accessRTrie(
     }
 
     return result;
+}
+
+void mapOntoTrie(RTrie *r, void (*func)(void *), const int base) {
+    if (func != NULL && isEmptyTrie(r) == False) {
+        RTrie **ct = r->children, **end = ct+base;
+        // Depth first application here
+        while (ct < end) {
+            if (*ct != NULL)
+                mapOntoTrie(*ct, func, base);
+
+            func((*ct)->data);
+            ++ct;
+        }
+    }
 }
 
 RTrie *destroyRTrie(RTrie *rt, const UInt b) {

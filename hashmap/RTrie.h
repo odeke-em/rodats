@@ -4,6 +4,12 @@
     #include "errors.h"
     typedef unsigned int UInt;
     typedef unsigned long int ULInt;
+#ifndef _BOOL_T
+#define _BOOL_T
+    typedef enum {
+        False=0, True=1
+    } Bool;
+#endif // _BOOL_T
 
     typedef enum {
         Pop, Get, Put
@@ -31,4 +37,8 @@
     RTrie *putRTrie(RTrie *, const DataSav *, const ULInt hash, const UInt base);
 
     void *__accessRTrie(RTrie *, const DataSav *, ULInt hash, const UInt base, const CrudEnum);
+
+    inline Bool isEmpty(RTrie *);
+
+    void mapOntoTrie(RTrie *r, void (*func)(void *), const int base);
 #endif // _RTRIE_H

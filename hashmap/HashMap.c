@@ -62,6 +62,11 @@ HashMap *pop(HashMap *hm, const ULInt hash, void (*prevFreer)(void *), const voi
     return hm;
 }
 
+void mapOntoHashMap(HashMap *hm, void (*func)(void *)) {
+    if (hm != NULL)
+        mapOntoTrie(hm->map, func, hm->base);
+}
+
 #ifdef _HASHMAP_MAIN
 int main() {
     HashMap *hm = newHashMap(10);

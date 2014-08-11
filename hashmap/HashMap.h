@@ -16,4 +16,6 @@
     void *get(HashMap *hm, const ULInt hash);
     HashMap *put(HashMap *hm, const ULInt hash, void *data, const UInt isHeapd);
     HashMap *pop(HashMap *hm, const ULInt hash, void (*prevFreer)(void *), const void **popSave);
+
+    void mapOntoHashMap(HashMap *hm, void (*func)(void *));
 #endif // _HASHMAP_H
