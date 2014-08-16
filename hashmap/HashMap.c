@@ -34,11 +34,17 @@ HashMap *destroyHashMap(HashMap *hm) {
 }
 
 HashMap *put(HashMap *hm, const ULInt hash, void *data, const UInt allocStyle) {
+    return putWithFreer(hm, hash, data, free, allocStyle);
+}
+
+HashMap *putWithFreer(
+    HashMap *hm, const ULInt hash, void *data, void (*freer)(void *), const UInt allocStyle
+) {
     if (hm != NULL) {
         if (hm->map == NULL)
             hm->map = newRTrie(hm->base);
 
-        DataSav dataSav = {.isHeapd=allocStyle, .data=data, .prevFreer=free};
+        DataSav dataSav = {.isHeapd=allocStyle, .data=data, .prevFreer=freer};
         hm->map = (RTrie *)putRTrie(hm->map, &dataSav, hash, hm->base);
     }
 
