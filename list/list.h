@@ -15,7 +15,7 @@
     Tag tag;
     void *data;
     struct Node_ *next;
-    int (*freeData)(void *data);
+    void (*freeData)(void *data);
   } Node;
 
   typedef struct List_ {

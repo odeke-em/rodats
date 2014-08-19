@@ -77,10 +77,16 @@ Node *initNode(Node *n) {
 
 Node *createNewNode(void) {
   Node *newNode = allocNode();
-  assert(newNode);
+  assert(newNode != NULL);
   
   newNode = initNode(newNode);
   return newNode;
+}
+
+Node *createNewNodeWithFreer(void (*freer)(void *)) {
+  Node *n = createNewNode();
+  n->freeData = freer;
+  return n;
 }
 
 List *initList(List *l) {
@@ -121,18 +127,18 @@ List *appendAndTag(List *l, void *data, Tag tag, void (*freer)(void *)) {
 
   if (l->head == NULL) {
     // First item being added to the list
-    l->head = createNewNode();
+    l->head = createNewNodeWithFreer(freer);
     l->head->data = data;
     l->head->tag = tag;
     l->tail = NULL;
     l->head->next = l->tail;
   } else if (l->tail == NULL) {
-    l->tail = createNewNode(); 
+    l->tail = createNewNodeWithFreer(freer);
     l->tail->data = data;
     l->tail->tag = tag;
     l->head->next = l->tail;
   } else {
-    l->tail->next = createNewNode();
+    l->tail->next = createNewNodeWithFreer(freer);
     l->tail = l->tail->next;
     l->tail->tag = tag;
     l->tail->data = data;
@@ -176,36 +182,31 @@ List *prependAndTag(List *l, void *data, Tag tag) {
   return l;
 }
 
-int freeFromHeadToTail(Node *head, Node *tail) {
-  int freeCount = 0;
-
-  return freeCount;
-}
-
 void destroyList(List *l) {
   if (l != NULL) {
     Node *start = l->head, *end = l->tail, *tmp = NULL;
 
     if (start != NULL) {
-      void (*dataFreer)(void *) = NULL;
       while (start != end) {
-	tmp = start->next;
-	if (start == NULL) break;
+        tmp = start->next;
+        if (start == NULL) break;
 
-	if (start->tag == Heapd && start->data != NULL)  {
-	  if (start->freeData == NULL) 
-	    free(start->data);
-	  else
-	    start->freeData(start->data);
-	}
+        if (start->tag == Heapd && start->data != NULL)  {
+          if (start->freeData == NULL) 
+            free(start->data);
+          else
+            start->freeData(start->data);
+        }
 
-	free(start);
-	start = tmp;
+        free(start);
+        start = tmp;
       }
 
       if (end != NULL) {
-	if (end->data != NULL) free(end->data);
-	free(end);
+        if (end->data != NULL)
+          free(end->data);
+
+        free(end);
       }
     }
 
@@ -243,7 +244,7 @@ List *multiMerge(unsigned int count, ...) {
   List **lBlock = (List **)malloc(sizeof(List *) * count);
   List *tmpL = NULL;
 
-  int i=0;
+  unsigned int i=0;
   while (i < count) {
     tmpL = va_arg(ap, List *);
     lBlock[i++] = tmpL;
@@ -257,65 +258,66 @@ List *multiMerge(unsigned int count, ...) {
 
   va_end(ap);
   if (i) {
-    int popularCount = count, midIndex = i/2, maxCount = i, gallop;
+    int popularCount = count;
+    unsigned int maxCount = i;
     int thresholdCount = 0.75 * count;
     List **minList = NULL;
     while (popularCount >= thresholdCount) {
     #ifdef DEBUG
       for (i=0; i < maxCount; ++i) {
-	printList(lBlock[i]); 
-	printf("\n");
+        printList(lBlock[i]); 
+        printf("\n");
       }
       printf("\033[35m\nBlockEntries\n\033[00m");
     #endif
 
       popularCount = maxCount;
       pickMinList: {
-	int minIdx=0;
-	while (minIdx < maxCount) {
-	  minList = lBlock + minIdx;
-	  if (peek(*minList) != NULL) {
-	    break;
-	  } else {
-	    ++minIdx;
-	  }
-	}
+        register unsigned int minIdx=0;
+        while (minIdx < maxCount) {
+          minList = lBlock + minIdx;
+          if (peek(*minList) != NULL) {
+            break;
+          } else {
+            ++minIdx;
+          }
+        }
 
-	if (peek(*minList) == NULL) {
-	  printf("No more selections for minList can be made\n");
-	  goto cleanUpForReturn;
-	}
+        if (peek(*minList) == NULL) {
+          printf("No more selections for minList can be made\n");
+          goto cleanUpForReturn;
+        }
       }
 
       int gallop = 0, nonEmptyCount = 0;
       for (i=0; i < maxCount; ++i) {
-	if (peek(lBlock[i]) == NULL) {
-	  --popularCount;
-	} else {
-	  ++nonEmptyCount;
-	  Comparison comp = matchFunc(peek(*minList), peek(lBlock[i]));
-	  if (comp == Equal) {
-	    ++gallop;
-	  } else if (comp == Greater) {
-	    minList = lBlock + i;
-	  }
-	}
+        if (peek(lBlock[i]) == NULL) {
+          --popularCount;
+        } else {
+          ++nonEmptyCount;
+          Comparison comp = matchFunc(peek(*minList), peek(lBlock[i]));
+          if (comp == Equal) {
+            ++gallop;
+          } else if (comp == Greater) {
+            minList = lBlock + i;
+          }
+        }
       }
 
       if (gallop == nonEmptyCount) { // All elements were equal
-	for (i=0; i < maxCount; ++i) {
-	  if (peek(lBlock[i]) != NULL) {
-	    merged = append(merged, popHead(lBlock[i]));
-	  }
-	}
+        for (i=0; i < maxCount; ++i) {
+          if (peek(lBlock[i]) != NULL) {
+            merged = append(merged, popHead(lBlock[i]));
+          }
+        }
       } else {
-	merged = append(merged, popHead(*minList));
+        merged = append(merged, popHead(*minList));
       }
     }
 
     for (i=0; i < maxCount; ++i) {
       while (peek(lBlock[i]) != NULL) {
-	merged = append(merged, popHead(lBlock[i]));
+        merged = append(merged, popHead(lBlock[i]));
       }
     }
   }
@@ -367,20 +369,20 @@ List *removeElem(List *l, void *query, Comparator matchFunc) {
 
     if (cur != NULL) {
       if (prev != NULL) {
-	prev->next = cur->next;
+        prev->next = cur->next;
       } else {
-	l->head = prev = cur->next;
+        l->head = prev = cur->next;
       }
-	
+    
       if (cur->data != NULL) free(cur->data);
       free(cur);
       cur = NULL;
       --l->size;
     }
   }
+
   return l;
 }
-
 
 #ifdef SAMPLE_RUN
 int main() {
