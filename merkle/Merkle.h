@@ -12,11 +12,10 @@
 
     typedef struct {
         MerkleNode *root;
+        void **mappedBuf;
+        long int stSize;
         unsigned int nodeCount;
-        unsigned long int size;
-        unsigned long int length;
-        unsigned long int blkSize;
-        unsigned long int chunkCount;
+        unsigned long int size,length, blkSize, chunkCount, mapLength;
         void *chunkList[];
     } MerkleTree;
     
@@ -29,6 +28,7 @@
     MerkleTree *destroyMerkleTree(MerkleTree *mkt);
 
     MerkleTree *merkleMMap(const char *path);
+    MerkleTree *merkleTreefy(const char *path);
 
     inline long int align(const long int qsz, const long int blockSz);
     unsigned long int redefinedPJWCharHash(const char *, unsigned int start, unsigned int end);

@@ -18,7 +18,7 @@ int main() {
         printf("%d/%d\n", l, r); // Simulating chunking of pairs' checksums
     }
 
-    MerkleTree *mkt = merkleMMap(__FILE__);
+    MerkleTree *mkt = merkleTreefy(__FILE__);
     mkt = destroyMerkleTree(mkt);
 
     return 0;

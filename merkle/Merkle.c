@@ -33,6 +33,7 @@ MerkleNode *destroyMerkleNode(MerkleNode *dfn) {
         dfn->buf = NULL;
         dfn->left = destroyMerkleNode(dfn->left);
         dfn->right = destroyMerkleNode(dfn->right);
+
         free(dfn);
         dfn = NULL;
     }
@@ -49,13 +50,13 @@ inline MerkleTree *allocMerkleTree(const unsigned int chunkCount) {
 }
 
 MerkleTree *newMerkleTree(const unsigned int chunkCount) {
-    MerkleTree *dft = allocMerkleTree(chunkCount);
-    assert(dft != NULL && dft->chunkList != NULL);
+    MerkleTree *mkt = allocMerkleTree(chunkCount);
+    assert(mkt != NULL && mkt->chunkList != NULL);
 
-    dft->root = NULL;
-    dft->length = chunkCount;
-    dft->chunkCount = chunkCount;
-    return dft;
+    mkt->root = NULL;
+    mkt->length = chunkCount;
+    mkt->chunkCount = chunkCount;
+    return mkt;
 }
 
 unsigned long int redefinedPJWCharHash(const char *str, unsigned int i, unsigned int end) {
@@ -87,6 +88,16 @@ inline unsigned int rightChild(const unsigned int i) {
 MerkleTree *destroyMerkleTree(MerkleTree *mkt) {
     if (mkt != NULL) {
         mkt->root = destroyMerkleNode(mkt->root);
+
+        if (mkt->mappedBuf != NULL && mkt->mappedBuf != MAP_FAILED) {
+            int result = munmap(mkt->mappedBuf, mkt->mapLength);
+            if (result != 0) {
+                raiseWarning("Failed to munmap buf. Got result: %d error: %s\n", result, strerror(errno));
+            }
+
+            mkt->mappedBuf = NULL;
+        }
+
         free(mkt);
         mkt = NULL;
     }
@@ -95,7 +106,7 @@ MerkleTree *destroyMerkleTree(MerkleTree *mkt) {
 }
 
 MerkleTree *merkleMMap(const char *path) {
-    MerkleTree *dft = NULL;
+    MerkleTree *mkt = NULL;
     if (path != NULL && *path != '\0') {
         int fd = open(path, O_RDONLY);
         struct stat stSav;
@@ -110,50 +121,62 @@ MerkleTree *merkleMMap(const char *path) {
             if (mappage == MAP_FAILED) {
                 raiseWarning("MMap of %s failed. Error: %s\n", path, strerror(errno));
             } else {
-                MerkleTree *dft = newMerkleTree(
+                mkt = newMerkleTree(
                     stSav.st_size > blkSize ? ceil(((float)stSav.st_size)/blkSize): 1
                 );
 
-                printf("dft: %p cc: %ld sz: %ld bk: %ld\n", dft, dft->chunkCount/1, (long int)stSav.st_size, blkSize/1);
-                unsigned int isAtEnd=0;
-                long int end=0, start;
-                unsigned long int id;
-
-                for (id=0, end=0; id < dft->chunkCount && isAtEnd == 0; ++id) {
-                    start = end;
-                    end += blkSize;
-                    if (end >= stSav.st_size) {
-                        isAtEnd = 1;
-                        end = stSav.st_size - 1;
-                    }
-                    printf("#id: %ld s: %ld e: %ld maxCC: %ld\n", id, start, end, dft->chunkCount);
-
-                    MerkleNode *dfn = newMerkleNode(
-                        redefinedPJWCharHash((char *)mappage, start, end), id
-                    );
-                    printf("dfn: %d\n", dfn->hashCode);
-
-                    dft->chunkList[id] = (void *)dfn;
-                }
-
-                // Time for hierachy instantiation
-                if (id >= 1) {
-                    dft->root = dft->chunkList[0];
-                }
-    
-                unsigned long int j;
-                end = dft->chunkCount >> 1;
-                for (start=0; start <= end; ++start) {
-                    id = leftChild(start); j = rightChild(start); // Re-using variables
-                    MerkleNode *dfn = dft->chunkList[start];
-                    if (id < dft->chunkCount)
-                        dfn->left = dft->chunkList[id];
-                    if (j < dft->chunkCount)
-                        dfn->right = dft->chunkList[j];
-                }
+                mkt->blkSize = blkSize;
+                mkt->mappedBuf = mappage;
+                mkt->mapLength = mapLength;
+                mkt->stSize = stSav.st_size;
             }
         }
     }
 
-    return dft;
+    return mkt;
+}
+
+MerkleTree *merkleTreefy(const char *path) {
+    MerkleTree *mkt = merkleMMap(path);
+
+    if (mkt != NULL) {
+        unsigned int isAtEnd=0;
+        long int end=0, start;
+        unsigned long int id;
+
+        for (id=0, end=0; id < mkt->chunkCount && isAtEnd == 0; ++id) {
+            start = end;
+            end += mkt->blkSize;
+            if (end >= mkt->stSize) {
+                isAtEnd = 1;
+                end = mkt->stSize;
+            }
+
+            MerkleNode *dfn = newMerkleNode(
+                redefinedPJWCharHash((char *)mkt->mappedBuf, start, end), id
+            );
+
+            printf("HashCode: %d\n", dfn->hashCode);
+
+            mkt->chunkList[id] = (void *)dfn;
+        }
+
+        // Time for hierachy instantiation
+        if (id >= 1) {
+            mkt->root = mkt->chunkList[0];
+        }
+    
+        unsigned long int j;
+        end = mkt->chunkCount >> 1;
+        for (start=0; start <= end; ++start) {
+            id = leftChild(start); j = rightChild(start); // Re-using variables
+            MerkleNode *dfn = mkt->chunkList[start];
+            if (id < mkt->chunkCount)
+                dfn->left = mkt->chunkList[id];
+            if (j < mkt->chunkCount)
+                dfn->right = mkt->chunkList[j];
+        }
+    }
+
+    return mkt;
 }
