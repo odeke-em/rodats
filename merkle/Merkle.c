@@ -136,6 +136,31 @@ MerkleTree *merkleMMap(const char *path) {
     return mkt;
 }
 
+void printMerkleTree(const MerkleTree *mkt, FILE *ofp) {
+    if (mkt != NULL) {
+        fprintf(ofp, "{chunkCount: %ld, totalSize: %ld, blkSize: %ld, mapLength: %ld, root: ",
+            mkt->chunkCount, mkt->stSize, mkt->blkSize, mkt->mapLength
+        );
+        printMerkleNode(mkt->root, ofp);
+        fputc('}', ofp);
+    }
+}
+
+void printMerkleNode(const MerkleNode *mkn, FILE *ofp) {
+    if (mkn != NULL) {
+        fprintf(ofp, "[id:%d, hash:%ld]", mkn->id, mkn->hashCode);
+        if (mkn->left != NULL) {
+            fputc(',', ofp);
+            printMerkleNode(mkn->left, ofp);
+        }
+
+        if (mkn->right != NULL) {
+            fputc(',', ofp);
+            printMerkleNode(mkn->right, ofp);
+        }
+    }
+}
+
 MerkleTree *merkleTreefy(const char *path) {
     MerkleTree *mkt = merkleMMap(path);
 
@@ -144,6 +169,7 @@ MerkleTree *merkleTreefy(const char *path) {
         long int end=0, start;
         unsigned long int id;
 
+        MerkleNode *mkn = NULL;
         for (id=0, end=0; id < mkt->chunkCount && isAtEnd == 0; ++id) {
             start = end;
             end += mkt->blkSize;
@@ -152,13 +178,15 @@ MerkleTree *merkleTreefy(const char *path) {
                 end = mkt->stSize;
             }
 
-            MerkleNode *dfn = newMerkleNode(
+            mkn = newMerkleNode(
                 redefinedPJWCharHash((char *)mkt->mappedBuf, start, end), id
             );
 
-            printf("HashCode: %d\n", dfn->hashCode);
+        #ifdef DEBUG
+            printf("HashCode: %d\n", mkn->hashCode);
+        #endif
 
-            mkt->chunkList[id] = (void *)dfn;
+            mkt->chunkList[id] = (void *)mkn;
         }
 
         // Time for hierachy instantiation
@@ -168,13 +196,14 @@ MerkleTree *merkleTreefy(const char *path) {
     
         unsigned long int j;
         end = mkt->chunkCount >> 1;
+      
         for (start=0; start <= end; ++start) {
             id = leftChild(start); j = rightChild(start); // Re-using variables
-            MerkleNode *dfn = mkt->chunkList[start];
+            mkn = mkt->chunkList[start];
             if (id < mkt->chunkCount)
-                dfn->left = mkt->chunkList[id];
+                mkn->left = mkt->chunkList[id];
             if (j < mkt->chunkCount)
-                dfn->right = mkt->chunkList[j];
+                mkn->right = mkt->chunkList[j];
         }
     }
 

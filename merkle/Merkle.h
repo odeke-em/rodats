@@ -14,8 +14,7 @@
         MerkleNode *root;
         void **mappedBuf;
         long int stSize;
-        unsigned int nodeCount;
-        unsigned long int size,length, blkSize, chunkCount, mapLength;
+        unsigned long int length, blkSize, chunkCount, mapLength;
         void *chunkList[];
     } MerkleTree;
     
@@ -29,6 +28,9 @@
 
     MerkleTree *merkleMMap(const char *path);
     MerkleTree *merkleTreefy(const char *path);
+
+    void printMerkleNode(const MerkleNode *mkn, FILE *ofp);
+    void printMerkleTree(const MerkleTree *mkt, FILE *ofp);
 
     inline long int align(const long int qsz, const long int blockSz);
     unsigned long int redefinedPJWCharHash(const char *, unsigned int start, unsigned int end);
