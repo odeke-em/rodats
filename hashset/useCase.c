@@ -6,12 +6,14 @@
 #include "MBuf.h"
 #include "HashSet.h"
 #include "errors.h"
+#define DEBUG
+
+// Goal here is given an arbitrary stream of integers,
+// take out duplicates however, maintain the set order
 
 typedef unsigned long long int ULLInt;
 
 int main(int argc, char *argv[]) {
-    // Goal here is given an arbitrary stream of integers,
-    // take out duplicates however, maintain the set order
     ULLInt n = 1000000, rNum, MAX_NUM = 578918283839281739, MIN_NUM=0;
     if (argc >= 2) {
         if (sscanf(argv[1], "%lld", &n) != 1)
@@ -45,6 +47,9 @@ int main(int argc, char *argv[]) {
         do {
             rFrac = (float)rand() / RAND_MAX;
             rNum  = rFrac * MAX_NUM;
+        #ifdef DEBUG
+            printf("#i: %lld/%lld rNum: %lld\n", i, n, rNum);
+        #endif // DEBUG
         } while (rNum  < MIN_NUM || rNum >= MAX_NUM);
 
         if (pushDMapOp(dm, *(mb->buf + i_mBuf), rNum) == 1)

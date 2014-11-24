@@ -57,7 +57,9 @@ DMap *pushDMap(DMap *dm, void *data, const ULInt h, const UInt allocStyle) {
 	void *retr = get(dm->hmap, h);
 	if (retr == NULL) {
 		dm->dnode = prependDNode(dm->dnode, data);
-		dm->hmap = put(dm->hmap, h, (void *)&(dm->dnode), 0); // Enter it as isStackd
+
+		// Enter it as isStackd. Using & 0 to take out unused parameter warning
+		dm->hmap = put(dm->hmap, h, (void *)&(dm->dnode), allocStyle & 0);
 		++dm->size;
 	}
 
