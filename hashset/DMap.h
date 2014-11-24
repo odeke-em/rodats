@@ -6,9 +6,9 @@
     #include "HashMap.h"
 
     typedef struct {
-	ULInt size;
-	DNode *dnode;
-	HashMap *hmap;
+        ULInt size;
+        DNode *dnode;
+        HashMap *hmap;
     } DMap;
 
     DMap *newDMap(void);

@@ -22,12 +22,17 @@ inline HashMap *newHashMap(const UInt base) {
 HashMap *destroyHashMap(HashMap *hm) {
     if (hm != NULL) {
         hm->map = destroyRTrie(hm->map, hm->base);
+    #ifdef CONCURRENCY
         pthread_mutex_t destMutex = PTHREAD_MUTEX_INITIALIZER;
 
         pthread_mutex_lock(&destMutex);
         free(hm);
         hm = NULL;
         pthread_mutex_unlock(&destMutex);
+    #else
+        free(hm);
+        hm = NULL;
+    #endif // CONCURRENCY
     }
 
     return hm;

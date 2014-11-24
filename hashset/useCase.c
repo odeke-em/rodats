@@ -3,8 +3,8 @@
 #include <ctype.h>
 #include <unistd.h>
 
-#include "DMap.h"
 #include "MBuf.h"
+#include "HashSet.h"
 #include "errors.h"
 
 typedef unsigned long long int ULLInt;
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     ULLInt i, i_mBuf=0, MBUF_BLK_SZ=sysconf(_SC_PAGE_SIZE);
 
     struct MBuf *mb = freshMBuf(MBUF_BLK_SZ);
-    DMap *dm = newDMap();
+    HashSet *dm = newDMap();
     double rFrac;
     printf("PG_SZ: %lld\n", MBUF_BLK_SZ);
     
