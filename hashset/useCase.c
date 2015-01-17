@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h> /* for RAND_MAX */
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>

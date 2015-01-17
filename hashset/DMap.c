@@ -227,7 +227,7 @@ DMap *fileToDM(const char *path) {
                 }
 
                 if (munmap(fBuf, mapLen)) {
-                    raiseWarning(strerror(errno));
+                    raiseWarning("%s", strerror(errno));
                 }
             }
         }
