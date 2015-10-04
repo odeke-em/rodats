@@ -15,11 +15,6 @@
     Destructor destroy;
   } Heap;
 
-  #define getParent(i) (i - 1)/2
-  #define leftChild(i) (2 * i + 1)
-  #define rightChild(i) (2 * i + 2)
-  #define isEmpty(h) (h == NULL || h->tree == NULL || h->size == 0)
-
   Heap *newHeap();
   Heap *initHeap(Heap *h, Comparator comp, Destructor destroy);
 

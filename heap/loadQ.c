@@ -82,10 +82,12 @@ void *loadConsume(void *d) {
     unsigned int *t = (unsigned int *)l->data;
     printf("t: %d\n", *t);
     char *msg = malloc(sizeof(char) * (1 + *t));
+
     int i;
     for (i=0; i < (*t + 1); ++i) {
       msg[i] = 'a' + i;
     }
+
     msg[i] = '\0';
     result = msg;
     l->id = getAvailableId(l->srcHeap);

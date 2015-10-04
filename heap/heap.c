@@ -11,6 +11,11 @@ static pthread_mutex_t heapMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t heapCondt = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t removeElemMutex = PTHREAD_MUTEX_INITIALIZER;
 
+inline int getParent(int i) { return (i - 1)/2; }
+inline int leftChild(int i) { return 2 * i + 1; }
+inline int rightChild(int i) { return 2 * i + 2; }
+inline void *peek(Heap *p) { return isEmpty(p) ? NULL : p->tree[0]; }
+
 inline Heap *newHeap() {
   return (Heap *)malloc(sizeof(Heap));
 }
@@ -25,9 +30,10 @@ inline int getSize(Heap *h) {
   return (h == NULL || h->tree == NULL ? 0 : h->size);
 }
 
-inline void *peek(Heap *p) {
-  return isEmpty(p) ? NULL : p->tree[0];
+inline int isEmpty(Heap *h)  {
+  return (h == NULL || h->tree == NULL || h->size == 0);
 }
+
 
 Heap *initHeap(Heap *h, Comparator comp, Destructor destroy) {
   if (h == NULL) {
@@ -44,23 +50,30 @@ Heap *initHeap(Heap *h, Comparator comp, Destructor destroy) {
 
 Heap *heapify(Heap *h, const int targetIndex) {
   pthread_mutex_lock(&heapMutex);
-  if (targetIndex >= 0 && targetIndex <= h->size) {
-    Comparator comp = h->compare;
-    int endIndex = targetIndex, parentIndex = getParent(endIndex);
-    while (1) {
-      if (comp(h->tree[endIndex], h->tree[parentIndex]) == Greater) {
-      #ifdef DEBUG
-        printf("swapping\n");
-      #endif
-        swap(h->tree + endIndex, h->tree + parentIndex);
-      } else {
-        break;
-      }
 
-      endIndex = parentIndex;
-      parentIndex = getParent(endIndex);
-    }
+  if (!(targetIndex >= 0 && targetIndex <= h->size))
+    goto done;
+
+  Comparator comp = h->compare;
+
+  int endIndex;
+  int parentIndex = targetIndex;
+  
+  while (parentIndex >= 0) {
+    endIndex    = parentIndex;
+    parentIndex = getParent(endIndex);
+
+    if (comp(h->tree[endIndex], h->tree[parentIndex]) != Greater)
+      break;
+      
+  #ifdef DEBUG
+    printf("swapping\n");
+  #endif
+    
+    swap(h->tree + endIndex, h->tree + parentIndex);
   }
+
+done:
   pthread_mutex_unlock(&heapMutex);
 
   return h;
@@ -87,33 +100,42 @@ void **getAddrOf(Heap *h, void *elem) {
 void *removeElem(Heap *h, void *similarElem) {
   void *popdElem = NULL;
   pthread_mutex_lock(&removeElemMutex);
-  if (h != NULL && h->tree != NULL && h->compare != NULL) {
-    void **addrOfElem = getAddrOf(h, similarElem);
-    if (addrOfElem != NULL) {
-      popdElem = *addrOfElem;
 
-      int unWantedIdx = addrOfElem - h->tree;
-      void **newTree = (void **)malloc(sizeof(void *) * (h->size - 1));
+  if (h == NULL || h->tree == NULL || h->compare == NULL || h->size < 1)
+    goto done;
 
-      int travIdx, i;
-      for (travIdx=0, i=0; travIdx < h->size; ++travIdx) {
-        if (h->compare(similarElem, h->tree[travIdx]) != Equal) {
-          newTree[i++] = h->tree[travIdx];
-        }
+  void **addrOfElem = getAddrOf(h, similarElem);
+  if (addrOfElem != NULL) {
+    popdElem = *addrOfElem;
+
+    int unWantedIdx = addrOfElem - h->tree;
+    void **newTree = (void **)malloc(sizeof(void *) * (h->size - 1));
+
+    int travIdx, i;
+    for (travIdx=0, i=0; travIdx < h->size; ++travIdx) {
+      if (h->compare(similarElem, h->tree[travIdx]) != Equal) {
+	newTree[i++] = h->tree[travIdx];
       }
-
-      --h->size;
-      h->tree = newTree;
-      h = heapifyFromHead(h);
     }
+
+    --h->size;
+    free(h->tree);
+
+    h->tree = newTree;
+    h = heapifyFromHead(h);
   }
+
+done:
   pthread_mutex_unlock(&removeElemMutex);
 
   return popdElem;
 }
 
 int heapInsert(Heap *h, void *data) {
-  if (h != NULL) {
+  if (h == NULL) {
+    fprintf(stderr, "Can't insert into null heap\n");
+    return -1;
+  } else {
     int extraSize = h->size + 1;
     if (h->tree == NULL) {
       h->tree = (void **)malloc(sizeof(void *) * extraSize);
@@ -126,44 +148,47 @@ int heapInsert(Heap *h, void *data) {
     h = heapify(h, h->size);
     h->size = extraSize;
     return 0;
-  } else {
-    fprintf(stderr, "Can't insert into null heap\n");
-    return -1;
   }
 }
 
 Heap *heapifyFromHead(Heap *h) {
   // Push the contents of the new top downward
-  int lPos, rPos, markedPos, curPos = 0;
+  int lPos, rPos, markedPos, curPos;
+
+  pthread_mutex_lock(&heapMutex);
   printf("heapifyLock in\n");
   int size = getSize(h);
   Comparator comp = h->compare; 
-  pthread_mutex_lock(&heapMutex);
-  while (1 && curPos < size) {
+
+  if (comp == NULL)
+    goto done;
+
+  for (curPos=0; curPos < size;){
     lPos = leftChild(curPos);
     rPos = rightChild(curPos);
 
+    markedPos = curPos;
     if (lPos < size && comp(h->tree[lPos], h->tree[curPos]) == Greater) {
        markedPos = lPos;
-    } else {
-      markedPos = curPos;
     }
 
+    // TODO: Mark this as to be visited and operate on it too, heapify(...)
     if (rPos < size && comp(h->tree[rPos], h->tree[markedPos]) == Greater) {
       markedPos = rPos;
     }
 
     // When the marked position is the current positon,
     // heap property has been restored
-    if (markedPos == curPos) {
+    if (markedPos == curPos)
       break;
-    } else {
-      swap(h->tree + markedPos, h->tree + curPos);
-    }
+
+    swap(h->tree + markedPos, h->tree + curPos);
 
     // Continue heapifying by moving another level down
     curPos = markedPos;
   }
+
+done:
   // pthread_cond_broadcast(&heapCondt);
   pthread_mutex_unlock(&heapMutex);
 
@@ -195,25 +220,30 @@ int heapExtract(Heap *h, const void **storage) {
 }
 
 Heap *destroyHeap(Heap *h) {
-  if (h != NULL) {
-    if (h->tree != NULL) {
-      if (h->destroy != NULL) {
-        void **it = h->tree, 
-            **end = it + h->size;
-        while (it != end) {
-          if (*it != NULL)
-            h->destroy(*it);
-          ++it;
-        }
-      }
+  pthread_mutex_lock(&heapMutex);
 
-      free(h->tree);
+  if (h == NULL ||h->tree == NULL)
+    goto done;
+    
+  if (h->destroy != NULL) {
+    void **it = h->tree;
+    void **end = it + h->size;
+
+    while (it != end) {
+      if (*it != NULL)
+	h->destroy(*it);
+    
+      ++it;
     }
-
-    h->size = 0;
-    free(h);
   }
 
+  free(h->tree);
+
+  h->size = 0;
+  free(h);
+
+done:
+  pthread_mutex_unlock(&heapMutex);
   return h;
 }
 
@@ -235,9 +265,12 @@ void printHeap(Heap *h, void (*iterPrint)(void *)) {
 }
 
 Comparison intPtrComp(const void *a, const void *b) {
-  if (a == NULL) return a == b ? Equal : Greater;
+  if (a == NULL)
+    return a == b ? Equal: Less;
+
   const int *aPtr = (int *)a;
   const int *bPtr = (int *)b;
+
   if (*aPtr != *bPtr) {
     return *aPtr < *bPtr ? Less : Greater;
   } else {
